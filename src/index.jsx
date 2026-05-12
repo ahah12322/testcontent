@@ -5,15 +5,15 @@ import '@/assets/css/style.css';
 import { RouterProvider } from 'react-router';
 import router from '@/router/router';
 import { Analytics } from '@vercel/analytics/react';
-import LoadingScreen from '@/components/loading-screen';
+import IntroLoading from '@/components/intro-loading';
 
 const App = () => {
-    const [loaded, setLoaded] = useState(false);
+    const [introDone, setIntroDone] = useState(false);
 
     return (
         <>
-            <LoadingScreen onDone={() => setLoaded(true)} />
-            {loaded && <RouterProvider router={router} />}
+            {!introDone && <IntroLoading onDone={() => setIntroDone(true)} />}
+            <RouterProvider router={router} />
             <Analytics />
         </>
     );

